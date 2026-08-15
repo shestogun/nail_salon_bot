@@ -1,0 +1,4 @@
+node_modules/
+.env
+nail-salon.db
+.vercel
