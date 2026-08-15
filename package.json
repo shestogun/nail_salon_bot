@@ -1,0 +1,16 @@
+{
+  "name": "nail-salon-bot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel deploy"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.64.0",
+    "@vercel/postgres": "^0.8.0"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}
