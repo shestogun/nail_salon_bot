@@ -1,6 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
-const db = require('../database');
-const slots = require('../services/slots');
+const db = require('../../database');
+const slots = require('../../services/slots');
 
 if (!process.env.BOT_TOKEN) {
   console.error('CRITICAL: BOT_TOKEN is not set');
@@ -8,8 +8,15 @@ if (!process.env.BOT_TOKEN) {
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: false, handlerTimeout: 10 });
 
-// Установка webhook
-async function setupWebhook() {
+// Инициализация таблиц при загрузке
+db.initTables().catch(e => console.error('DB init error:', e));
+
+// Флаг для однократной установки webhook
+let webhookSetup = false;
+
+async function ensureWebhook() {
+  if (webhookSetup) return;
+  webhookSetup = true;
   const webhookUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}/api/webhook`
     : process.env.WEBHOOK_URL || 'https://your-domain.com/api/webhook';
@@ -21,12 +28,6 @@ async function setupWebhook() {
   }
 }
 
-// Инициализация таблиц при загрузке
-db.initTables().catch(e => console.error('DB init error:', e));
-
-// Устанавливаем webhook при первом запуске
-setupWebhook();
-
 module.exports = async (req, res) => {
   if (req.method !== 'POST' || !req.body) {
     return res.status(200).send('OK');
@@ -34,6 +35,9 @@ module.exports = async (req, res) => {
 
   const update = req.body;
   console.log('Received update:', JSON.stringify(update).substring(0, 200));
+
+  // Устанавливаем webhook при первом запросе от Telegram
+  await ensureWebhook();
 
   if (update.message) {
     const msg = update.message;
