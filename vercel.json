@@ -4,8 +4,8 @@
     { "source": "/api/webhook", "destination": "/api/webhook/index.js" }
   ],
   "functions": {
-    "api/webhook/*.js": {
-      "runtime": "@vercel/node@2"
+    "api/webhook/index.js": {
+      "runtime": "@vercel/node@2.13.0"
     }
   }
 }
