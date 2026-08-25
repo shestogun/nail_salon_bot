@@ -1,9 +1,21 @@
 const { Pool } = require('@neondatabase/serverless');
 
-const pool = new Pool({ connectionString: process.env.VERCEL_POSTGRES_URL });
+let pool = null;
+
+function getPool() {
+  if (!pool) {
+    const connectionString = process.env.VERCEL_POSTGRES_URL;
+    if (!connectionString) {
+      throw new Error('VERCEL_POSTGRES_URL is not set');
+    }
+    pool = new Pool({ connectionString });
+  }
+  return pool;
+}
 
 async function query(text, params) {
-  const client = await pool.connect();
+  const p = getPool();
+  const client = await p.connect();
   try {
     return await client.query(text, params);
   } finally {
