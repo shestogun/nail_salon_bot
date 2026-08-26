@@ -136,10 +136,27 @@ async function handleMessage(chatId, text, msg) {
     return;
   }
 
-  // Booking state from DB
   const state = await db.getUserState(chatId);
-  if (state && state.waitingForName) {
-    const { date, time, svcNum } = state.data;
+  const parsedState = state ? JSON.parse(state.data) : null;
+
+  if (parsedState && parsedState.waitingForDate) {
+    const dateText = text.trim();
+    // Проверяем формат даты
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) {
+      await bot.sendMessage(chatId, '❌ Введите дату в формате ГГГГ-ММ-ДД (например: 2026-08-25)');
+      return;
+    }
+    // Сохраняем выбранную дату
+    await db.setUserState(chatId, {
+      waitingForName: false,
+      data: { pickedDate: dateText }
+    });
+    await showServiceSelection(chatId, dateText);
+    return;
+  }
+
+  if (parsedState && parsedState.waitingForName) {
+    const { date, time, svcNum } = parsedState.data;
     const service = slots.SERVICES[svcNum - 1];
     const client = await db.upsertClient(chatId, msg);
     const breakAfter = slots.getBreakForService(service.name);
@@ -275,12 +292,16 @@ async function handleCallback(chatId, data, messageId) {
   }
 
   if (data === 'show_services') {
+    // Получаем дату из состояния, иначе берём сегодня
+    const savedState = await db.getUserState(chatId);
+    let date = savedState ? JSON.parse(savedState.data).pickedDate : new Date().toISOString().split('T')[0];
     const markup = { inline_keyboard: [] };
     slots.SERVICES.forEach((s, i) => {
-      markup.inline_keyboard.push([{ text: `${i + 1}. ${s.name}`, callback_data: `service_${i + 1}` }]);
+      markup.inline_keyboard.push([{ text: `${i + 1}. ${s.name}`, callback_data: `service_${i + 1}_${date}` }]);
     });
+    markup.inline_keyboard.push([{ text: '📅 Выбрать дату', callback_data: 'pick_date' }]);
     markup.inline_keyboard.push([{ text: '⬅️ Назад', callback_data: 'back_home' }]);
-    await bot.editMessageText('💅 Выберите услугу:', {
+    await bot.editMessageText(`📅 ${date}\n💅 Выберите услугу:`, {
       chat_id: chatId, message_id: messageId, reply_markup: markup
     });
     return;
@@ -289,6 +310,17 @@ async function handleCallback(chatId, data, messageId) {
   if (data === 'show_free') {
     const date = new Date().toISOString().split('T')[0];
     await showServiceSelection(chatId, date, messageId);
+    return;
+  }
+
+  if (data === 'pick_date') {
+    await db.setUserState(chatId, {
+      waitingForDate: true,
+      data: {}
+    });
+    await bot.editMessageText('📅 Введите дату в формате ГГГГ-ММ-ДД:', {
+      chat_id: chatId, message_id: messageId
+    });
     return;
   }
 }

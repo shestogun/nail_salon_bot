@@ -7,10 +7,10 @@
     "deploy": "vercel deploy"
   },
   "dependencies": {
-    "node-telegram-bot-api": "^0.64.0",
-    "@neondatabase/serverless": "^0.10.0"
+    "@neondatabase/serverless": "^1.1.0",
+    "node-telegram-bot-api": "^2.0.0"
   },
   "devDependencies": {
-    "vercel": "^32.0.0"
+    "vercel": "^54.17.3"
   }
 }
