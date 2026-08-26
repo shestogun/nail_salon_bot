@@ -401,8 +401,15 @@ async function handleAdminCommands(chatId, text) {
       '/removeslot <дата> <время> — удалить слот\n' +
       '/mybookings — записи на сегодня\n' +
       '/cancel <id> — отменить запись\n' +
-      '/reschedule <id> <дата> <время> — перенести запись'
+      '/reschedule <id> <дата> <время> — перенести запись\n' +
+      '/clearstate — очистить все состояния пользователей'
     );
+  }
+
+  if (text === '/clearstate') {
+    await db.query('DELETE FROM user_states');
+    await bot.sendMessage(chatId, '✅ Все состояния пользователей очищены.');
+    return;
   }
 }
 
