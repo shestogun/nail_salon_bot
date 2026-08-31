@@ -292,9 +292,9 @@ async function handleCallback(chatId, data, messageId) {
   }
 
   if (data === 'show_services') {
-    // Получаем дату из состояния, иначе берём сегодня
     const savedState = await db.getUserState(chatId);
-    let date = savedState ? JSON.parse(savedState.data).pickedDate : new Date().toISOString().split('T')[0];
+    const savedData = savedState ? JSON.parse(savedState.data) : {};
+    const date = savedData.pickedDate || new Date().toISOString().split('T')[0];
     const markup = { inline_keyboard: [] };
     slots.SERVICES.forEach((s, i) => {
       markup.inline_keyboard.push([{ text: `${i + 1}. ${s.name}`, callback_data: `service_${i + 1}_${date}` }]);
