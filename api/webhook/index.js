@@ -74,7 +74,8 @@ async function handleMessage(chatId, text, msg) {
   }
 
   if (text === '/services') {
-    await bot.sendMessage(chatId, slots.formatServiceList());
+    const date = new Date().toISOString().split('T')[0];
+    await showServiceSelection(chatId, date);
     return;
   }
 
