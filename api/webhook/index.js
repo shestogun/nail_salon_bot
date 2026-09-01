@@ -75,7 +75,7 @@ async function handleMessage(chatId, text, msg) {
 
   if (text === '/services') {
     const date = new Date().toISOString().split('T')[0];
-    await showServiceSelection(chatId, date);
+    await showServiceSelection(chatId, date, null);
     return;
   }
 
@@ -280,12 +280,19 @@ async function handleCallback(chatId, data, messageId) {
   }
 
   if (data === 'back_home') {
-    await bot.editMessageText('💅 Добро пожаловать в маникюрный салон!', {
-      chat_id: chatId, message_id: messageId,
+    // Очистить waitingForDate чтобы текст не интерпретировался как дата
+    const savedState = await db.getUserState(chatId);
+    const savedData = savedState ? JSON.parse(savedState.data) : {};
+    if (savedData && savedData.waitingForDate) {
+      await db.setUserState(chatId, { waitingForName: false, data: {} });
+    }
+    // Отправляем новое сообщение с inline-клавиатурой (не editMessageText!)
+    await bot.sendMessage(chatId, '💅 Добро пожаловать в маникюрный салон!', {
       reply_markup: {
         inline_keyboard: [
           [{ text: '📋 Услуги', callback_data: 'show_services' },
-           { text: '📅 Свободные слоты', callback_data: 'show_free' }]
+           { text: '📅 Свободные слоты', callback_data: 'show_free' }],
+          [{ text: '/book', callback_data: 'book' }]
         ]
       }
     });
@@ -293,9 +300,14 @@ async function handleCallback(chatId, data, messageId) {
   }
 
   if (data === 'show_services') {
-    const savedState = await db.getUserState(chatId);
-    const savedData = savedState ? JSON.parse(savedState.data) : {};
-    const date = savedData.pickedDate || new Date().toISOString().split('T')[0];
+    let date = new Date().toISOString().split('T')[0];
+    try {
+      const savedState = await db.getUserState(chatId);
+      if (savedState) {
+        const savedData = JSON.parse(savedState.data);
+        if (savedData.pickedDate) date = savedData.pickedDate;
+      }
+    } catch(e) { /* ignore parse errors */ }
     const markup = { inline_keyboard: [] };
     slots.SERVICES.forEach((s, i) => {
       markup.inline_keyboard.push([{ text: `${i + 1}. ${s.name}`, callback_data: `service_${i + 1}_${date}` }]);
@@ -310,7 +322,7 @@ async function handleCallback(chatId, data, messageId) {
 
   if (data === 'show_free') {
     const date = new Date().toISOString().split('T')[0];
-    await showServiceSelection(chatId, date, messageId);
+    await showServiceSelection(chatId, date, null);
     return;
   }
 
