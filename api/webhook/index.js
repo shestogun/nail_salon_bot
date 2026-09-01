@@ -147,6 +147,18 @@ async function handleMessage(chatId, text, msg) {
       await bot.sendMessage(chatId, '❌ Введите дату в формате ГГГГ-ММ-ДД (например: 2026-08-25)');
       return;
     }
+    // Ограничение: не более 30 дней вперёд
+    const inputDate = new Date(dateText);
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 30);
+    if (inputDate > maxDate) {
+      await bot.sendMessage(chatId, '❌ Можно выбрать дату не более чем на 30 дней вперёд.');
+      return;
+    }
+    if (inputDate < new Date().setHours(0,0,0,0)) {
+      await bot.sendMessage(chatId, '❌ Нельзя выбрать прошедшую дату.');
+      return;
+    }
     // Сохраняем выбранную дату
     await db.setUserState(chatId, {
       waitingForName: false,
