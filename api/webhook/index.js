@@ -155,7 +155,11 @@ async function handleMessage(chatId, text, msg) {
       await bot.sendMessage(chatId, '❌ Можно выбрать дату не более чем на 30 дней вперёд.');
       return;
     }
-    if (inputDate < new Date().setHours(0,0,0,0)) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const inputDateOnly = new Date(dateText);
+    inputDateOnly.setHours(0, 0, 0, 0);
+    if (inputDateOnly < today) {
       await bot.sendMessage(chatId, '❌ Нельзя выбрать прошедшую дату.');
       return;
     }
