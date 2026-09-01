@@ -336,6 +336,12 @@ async function handleCallback(chatId, data, messageId) {
     });
     return;
   }
+
+  if (data === 'book') {
+    await bot.sendMessage(chatId, 'Используйте /free для выбора слота.');
+    return;
+  }
+
 }
 
 // ── Admin commands ──
