@@ -268,9 +268,10 @@ async function handleCallback(chatId, data, messageId) {
       ]
     };
 
-    await bot.editMessageText(
+    await bot.sendMessage(
+      chatId,
       `📅 ${date}\n⏰ ${time}\n💅 ${service.name} (${service.duration} мин)\n\nОтправьте ваше имя для записи:`,
-      { chat_id: chatId, message_id: messageId, reply_markup: markup }
+      { reply_markup: markup }
     );
     return;
   }
@@ -288,9 +289,10 @@ async function handleCallback(chatId, data, messageId) {
       data: { date, time, svcNum }
     });
 
-    await bot.editMessageText(
+    await bot.sendMessage(
+      chatId,
       `📝 Подтверждение записи:\n\n📅 ${date}\n⏰ ${time}\n💅 ${service.name} (${service.duration} мин)\n\nОтправьте ваше имя:`,
-      { chat_id: chatId, message_id: messageId }
+      { reply_markup: { inline_keyboard: [[{ text: '⬅️ Назад', callback_data: 'back_home' }]] } }
     );
     return;
   }
@@ -330,8 +332,8 @@ async function handleCallback(chatId, data, messageId) {
     });
     markup.inline_keyboard.push([{ text: '📅 Выбрать дату', callback_data: 'pick_date' }]);
     markup.inline_keyboard.push([{ text: '⬅️ Назад', callback_data: 'back_home' }]);
-    await bot.editMessageText(`📅 ${date}\n💅 Выберите услугу:`, {
-      chat_id: chatId, message_id: messageId, reply_markup: markup
+    await bot.sendMessage(chatId, `📅 ${date}\n💅 Выберите услугу:`, {
+      reply_markup: markup
     });
     return;
   }
@@ -347,8 +349,8 @@ async function handleCallback(chatId, data, messageId) {
       waitingForDate: true,
       data: {}
     });
-    await bot.editMessageText('📅 Введите дату в формате ГГГГ-ММ-ДД:', {
-      chat_id: chatId, message_id: messageId
+    await bot.sendMessage('📅 Введите дату в формате ГГГГ-ММ-ДД:', {
+      chat_id: chatId
     });
     return;
   }
@@ -458,8 +460,8 @@ async function showServiceSelection(chatId, date, messageId) {
   markup.inline_keyboard.push([{ text: '⬅️ Назад', callback_data: 'back_home' }]);
 
   if (messageId) {
-    await bot.editMessageText(`📅 ${date}\n💅 Выберите услугу:`, {
-      chat_id: chatId, message_id: messageId, reply_markup: markup
+    await bot.sendMessage(chatId, `📅 ${date}\n💅 Выберите услугу:`, {
+      reply_markup: markup
     });
   } else {
     await bot.sendMessage(chatId, `📅 ${date}\n💅 Выберите услугу:`, { reply_markup: markup });
