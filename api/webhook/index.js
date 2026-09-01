@@ -480,3 +480,39 @@ async function notifyAdmin(client, service, date, time, bookingId, cancelled = f
     bot.sendMessage(adminId, text).catch(e => console.error('Notify error:', e));
   });
 }
+
+// ── Vercel HTTP Handler ──
+
+module.exports = async function handler(req, res) {
+  if (req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Telegram webhook is running');
+    return;
+  }
+
+  if (req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const update = JSON.parse(body);
+        if (update.message) {
+          await handleMessage(update.message.chat.id, update.message.text, update.message);
+        } else if (update.callback_query) {
+          const callback = update.callback_query;
+          await handleCallback(callback.data, callback.message.chat.id, callback.message.message_id);
+          await bot.answerCallbackQuery(callback.id);
+        }
+        res.writeHead(200);
+        res.end();
+      } catch (e) {
+        console.error('Webhook error:', e);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+  } else {
+    res.writeHead(405);
+    res.end();
+  }
+};
