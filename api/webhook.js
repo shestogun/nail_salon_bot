@@ -19,8 +19,8 @@ function tgApi(method, body) {
 }
 
 // ── Service imports ──
-const db = require('../../database');
-const slots = require('../../services/slots');
+const db = require('../database');
+const slots = require('../services/slots');
 const SERVICES = slots.SERVICES;
 const getAvailableSlots = slots.getAvailableSlots;
 const getBreakForService = slots.getBreakForService;
