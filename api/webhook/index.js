@@ -74,8 +74,7 @@ async function handleMessage(chatId, text, msg) {
   }
 
   if (text === '/services') {
-    const date = new Date().toISOString().split('T')[0];
-    await showServiceSelection(chatId, date, null);
+    await showMainMenu(chatId);
     return;
   }
 
@@ -127,13 +126,12 @@ async function handleMessage(chatId, text, msg) {
   }
 
   if (text.startsWith('/free')) {
-    const date = text.split(' ')[1] || new Date().toISOString().split('T')[0];
-    await showServiceSelection(chatId, date);
+    await pickDate(chatId);
     return;
   }
 
   if (text === '/book') {
-    await bot.sendMessage(chatId, `Используйте /free для выбора слота.`);
+    await pickDate(chatId);
     return;
   }
 
@@ -142,12 +140,10 @@ async function handleMessage(chatId, text, msg) {
 
   if (parsedState && parsedState.waitingForDate) {
     const dateText = text.trim();
-    // Проверяем формат даты
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) {
-      await bot.sendMessage(chatId, '❌ Введите дату в формате ГГГГ-ММ-ДД (например: 2026-08-25)');
+      await bot.sendMessage(chatId, '❌ Введите дату в формате ГГГГ-ММ-ДД (например: 2026-09-15)');
       return;
     }
-    // Ограничение: не более 30 дней вперёд
     const inputDate = new Date(dateText);
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + 30);
@@ -163,30 +159,49 @@ async function handleMessage(chatId, text, msg) {
       await bot.sendMessage(chatId, '❌ Нельзя выбрать прошедшую дату.');
       return;
     }
-    // Сохраняем выбранную дату
     await db.setUserState(chatId, {
-      waitingForName: false,
+      waitingForTime: true,
       data: { pickedDate: dateText }
     });
-    await showServiceSelection(chatId, dateText);
+    await showTimeSelection(chatId, dateText);
+    return;
+  }
+
+  if (parsedState && parsedState.waitingForTime) {
+    const time = text.trim();
+    if (!/^\d{2}:\d{2}$/.test(time)) {
+      await bot.sendMessage(chatId, '❌ Введите время в формате ЧЧ:ММ (например: 14:00)');
+      return;
+    }
+    const { pickedDate } = parsedState.data;
+    await db.setUserState(chatId, {
+      waitingForName: true,
+      data: { pickedDate, pickedTime: time }
+    });
+    await bot.sendMessage(chatId, `✅ Время ${time} на ${pickedDate} выбрано!\n\n📝 Теперь введите ваше имя:`, {
+      reply_markup: { inline_keyboard: [[{ text: '⬅️ Назад', callback_data: 'back_home' }]] }
+    });
     return;
   }
 
   if (parsedState && parsedState.waitingForName) {
-    const { date, time, svcNum } = parsedState.data;
-    const service = slots.SERVICES[svcNum - 1];
+    const { pickedDate, pickedTime, svcNum } = parsedState.data;
+    const service = svcNum ? slots.SERVICES[svcNum - 1] : null;
     const client = await db.upsertClient(chatId, msg);
-    const breakAfter = slots.getBreakForService(service.name);
-    const bookingId = await db.addBooking(client.id, service.name, service.duration, breakAfter, date, time);
+    const svcName = service ? service.name : 'Не указана';
+    const svcDuration = service ? service.duration : 60;
+    const breakAfter = service ? slots.getBreakForService(service.name) : 15;
+    const bookingId = await db.addBooking(client.id, svcName, svcDuration, breakAfter, pickedDate, pickedTime);
     await db.deleteUserState(chatId);
     await bot.sendMessage(chatId,
       `✅ Вы записаны!\n` +
-      `💅 ${service.name}\n` +
-      `📅 ${date}\n` +
-      `⏰ ${time}\n` +
-      `⏱ ${service.duration} мин`
+      `💅 ${svcName}\n` +
+      `📅 ${pickedDate}\n` +
+      `⏰ ${pickedTime}\n` +
+      `⏱ ${svcDuration} мин\n` +
+      `👤 ${text.trim()}`
     );
-    await notifyAdmin(client, service, date, time, bookingId, false);
+    await notifyAdmin(client, { name: svcName, duration: svcDuration }, pickedDate, pickedTime, bookingId, false);
     return;
   }
 
@@ -349,14 +364,60 @@ async function handleCallback(chatId, data, messageId) {
       waitingForDate: true,
       data: {}
     });
-    await bot.sendMessage('📅 Введите дату в формате ГГГГ-ММ-ДД:', {
-      chat_id: chatId
+    await bot.sendMessage(chatId, '📅 Введите дату в формате ГГГГ-ММ-ДД (например: 2026-09-15):\n\nМожно выбрать не более чем на 30 дней вперёд.', {
+      reply_markup: { inline_keyboard: [[{ text: '⬅️ Назад', callback_data: 'back_home' }]] }
     });
     return;
   }
 
+  if (data.startsWith('time_')) {
+    const parts = data.split('_');
+    const time = parts[1];
+    const date = parts[2];
+    await db.setUserState(chatId, {
+      waitingForName: true,
+      data: { pickedDate: date, pickedTime: time }
+    });
+    await bot.sendMessage(chatId, `✅ Время ${time} на ${date} выбрано!\n\n📝 Теперь введите ваше имя:`, {
+      reply_markup: { inline_keyboard: [[{ text: '⬅️ Назад', callback_data: 'back_home' }]] }
+    });
+    return;
+  }
+
+  if (data === 'help') {
+    await bot.sendMessage(chatId,
+      '📋 Помощь:\n\n' +
+      '1. Нажмите "Выбрать дату"\n' +
+      '2. Введите дату (ГГГГ-ММ-ДД)\n' +
+      '3. Выберите время из списка\n' +
+      '4. Введите ваше имя\n\n' +
+      'Можно выбрать дату не более чем на 30 дней вперёд.'
+    );
+    return;
+  }
+
+  if (data === 'mybookings') {
+    const client = await db.getClientByChatId(chatId);
+    if (!client) {
+      await db.upsertClient(chatId, {});
+      await bot.sendMessage(chatId, 'Вы ещё не записаны ни на одну услугу.');
+      return;
+    }
+    const bookings = await db.getBookingsByClientId(client.id);
+    if (bookings.length === 0) {
+      await bot.sendMessage(chatId, 'У вас нет активных записей.');
+      return;
+    }
+    let txt = '📋 Ваши записи:\n\n';
+    bookings.forEach(b => {
+      txt += `🔖 №${b.id}\n💅 ${b.service}\n📅 ${b.date}\n⏰ ${b.time}\n⏱ ${b.service_duration} мин\n\n`;
+    });
+    await bot.sendMessage(chatId, txt.trim());
+    return;
+  }
+
   if (data === 'book') {
-    await bot.sendMessage(chatId, 'Используйте /free для выбора слота.');
+    await pickDate(chatId);
     return;
   }
 
@@ -452,6 +513,41 @@ async function handleAdminCommands(chatId, text) {
 
 // ── Helpers ──
 
+async function pickDate(chatId) {
+  await db.setUserState(chatId, {
+    waitingForDate: true,
+    data: {}
+  });
+  await bot.sendMessage(chatId, '📅 Введите дату в формате ГГГГ-ММ-ДД (например: 2026-09-15):\n\nМожно выбрать не более чем на 30 дней вперёд.', {
+    reply_markup: { inline_keyboard: [[{ text: '⬅️ Назад', callback_data: 'back_home' }]] }
+  });
+}
+
+async function showMainMenu(chatId) {
+  const markup = {
+    inline_keyboard: [
+      [{ text: '📅 Выбрать дату', callback_data: 'pick_date' }],
+      [{ text: '📋 Мои записи', callback_data: 'mybookings' }],
+      [{ text: 'ℹ️ Помощь', callback_data: 'help' }]
+    ]
+  };
+  await bot.sendMessage(chatId, '💅 Добро пожаловать в маникюрный салон!\n\nВыберите действие:', { reply_markup: markup });
+}
+
+async function showTimeSelection(chatId, date) {
+  const markup = {
+    inline_keyboard: [
+      ['10:00', '10:30', '11:00', '11:30'],
+      ['12:00', '12:30', '13:00', '13:30'],
+      ['14:00', '14:30', '15:00', '15:30'],
+      ['16:00', '16:30', '17:00', '17:30'],
+      ['18:00', '18:30', '19:00', '19:30'],
+      [{ text: '⬅️ Назад', callback_data: 'back_home' }]
+    ]
+  };
+  await bot.sendMessage(chatId, `📅 Выберите время на ${date}:`, { reply_markup: markup });
+}
+
 async function showServiceSelection(chatId, date, messageId) {
   const markup = { inline_keyboard: [] };
   slots.SERVICES.forEach((s, i) => {
@@ -459,13 +555,9 @@ async function showServiceSelection(chatId, date, messageId) {
   });
   markup.inline_keyboard.push([{ text: '⬅️ Назад', callback_data: 'back_home' }]);
 
-  if (messageId) {
-    await bot.sendMessage(chatId, `📅 ${date}\n💅 Выберите услугу:`, {
-      reply_markup: markup
-    });
-  } else {
-    await bot.sendMessage(chatId, `📅 ${date}\n💅 Выберите услугу:`, { reply_markup: markup });
-  }
+  await bot.sendMessage(chatId, `📅 ${date}\n💅 Выберите услугу:`, {
+    reply_markup: markup
+  });
 }
 
 // ── Notifications ──
