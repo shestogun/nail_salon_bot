@@ -231,9 +231,10 @@ async function handleCallback(chatId, data, messageId) {
            { text: '⬅️ Назад', callback_data: 'back_home' }]
         ]
       };
-      await bot.editMessageText(
+      await bot.sendMessage(
+        chatId,
         `💅 ${service.name}\n⏱ ${service.duration} мин\n📅 ${date}\n\nВыберите время:`,
-        { chat_id: chatId, message_id: messageId, reply_markup: markup }
+        { reply_markup: markup }
       );
     }
     return;
@@ -262,9 +263,10 @@ async function handleCallback(chatId, data, messageId) {
       { text: '⬅️ Назад', callback_data: `service_${svcNum}_${date}` }
     ]);
 
-    await bot.editMessageText(
+    await bot.sendMessage(
+      chatId,
       `⏰ Выберите время (${date}):\n\n${available.length === 0 ? 'Нет свободных слотов.' : 'Доступные слоты:'}`,
-      { chat_id: chatId, message_id: messageId, reply_markup: markup }
+      { reply_markup: markup }
     );
     return;
   }
