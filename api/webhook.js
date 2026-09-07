@@ -59,20 +59,20 @@ async function ensureWebhook() {
   }
 }
 
-module.exports = async (req, res) => {
-  // Vercel serverless не парсит JSON автоматически
+module.exports = async (req) => {
+  // Vercel Edge Functions: используем Request объект
   let update;
   if (req.method === 'POST') {
     const body = await req.text();
     try {
       update = JSON.parse(body);
     } catch (e) {
-      return res.status(200).send('OK');
+      return new Response('OK', { status: 200 });
     }
   }
 
   if (!update) {
-    return res.status(200).send('OK');
+    return new Response('OK', { status: 200 });
   }
 
   console.log('Received update:', JSON.stringify(update).substring(0, 200));
@@ -96,7 +96,7 @@ module.exports = async (req, res) => {
     await tgApi.answerCallbackQuery(query.id);
   }
 
-  res.status(200).send('OK');
+  return new Response('OK', { status: 200 });
 };
 
 // ── Message handler ──
