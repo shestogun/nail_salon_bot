@@ -60,11 +60,25 @@ async function ensureWebhook() {
 }
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST' || !req.body) {
+  // Vercel serverless не парсит JSON автоматически
+  let update;
+  if (req.method === 'POST') {
+    const body = await new Promise((resolve) => {
+      const chunks = [];
+      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    });
+    try {
+      update = JSON.parse(body);
+    } catch (e) {
+      return res.status(200).send('OK');
+    }
+  }
+
+  if (!update) {
     return res.status(200).send('OK');
   }
 
-  const update = req.body;
   console.log('Received update:', JSON.stringify(update).substring(0, 200));
 
   // Устанавливаем webhook при первом запросе от Telegram
