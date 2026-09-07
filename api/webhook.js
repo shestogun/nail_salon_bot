@@ -259,6 +259,10 @@ async function handleMessage(chatId, text, msg) {
 // ── Callback handler ──
 
 async function handleCallback(chatId, data, messageId) {
+  if (typeof data !== 'string' || !data) {
+    console.log('handleCallback: invalid data type:', typeof data, data);
+    return;
+  }
   if (data.startsWith('service_')) {
     const parts = data.split('_');
     const serviceNum = parseInt(parts[1]);
