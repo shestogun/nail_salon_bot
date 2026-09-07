@@ -8,15 +8,29 @@ if (!process.env.BOT_TOKEN) {
 
 const TG_API = `https://api.telegram.org/bot${process.env.BOT_TOKEN}`;
 
-function tgApi(method, body) {
-  if (!body) body = {};
-  const url = 'https://api.telegram.org/bot' + process.env.BOT_TOKEN + '/' + method;
-  return fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  }).then(function(r) { return r.json(); });
-}
+const tgApi = {
+  async call(method, body) {
+    if (!body) body = {};
+    const url = 'https://api.telegram.org/bot' + process.env.BOT_TOKEN + '/' + method;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return res.json();
+  },
+  async sendMessage(chatId, text, extra) {
+    return this.call('sendMessage', { chat_id: chatId, text: text, ...(extra || {}) });
+  },
+  async setWebhook(url) {
+    return this.call('setWebhook', { url: url });
+  },
+  async answerCallbackQuery(callbackQueryId, text) {
+    const body = { callback_query_id: callbackQueryId };
+    if (text) body.text = text;
+    return this.call('answerCallbackQuery', body);
+  }
+};
 
 // ── Service imports ──
 const db = require('../database');
