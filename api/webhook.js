@@ -63,11 +63,7 @@ module.exports = async (req, res) => {
   // Vercel serverless не парсит JSON автоматически
   let update;
   if (req.method === 'POST') {
-    const body = await new Promise((resolve) => {
-      const chunks = [];
-      req.on('data', (chunk) => chunks.push(chunk));
-      req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    });
+    const body = await new Response(req.body).text();
     try {
       update = JSON.parse(body);
     } catch (e) {
