@@ -92,8 +92,8 @@ module.exports = async (req) => {
     const chatId = query.message.chat.id;
     const data = query.data;
     const messageId = query.message.message_id;
-    try { await handleCallback(chatId, data, messageId); } catch (err) { console.error('Callback error:', err); }
     await tgApi.answerCallbackQuery(query.id);
+    try { await handleCallback(chatId, data, messageId); } catch (err) { console.error('Callback error:', err); }
   }
 
   return new Response('OK', { status: 200 });
@@ -177,7 +177,7 @@ async function handleMessage(chatId, text, msg) {
   }
 
   const state = await db.getUserState(chatId);
-  const parsedState = state ? JSON.parse(state.data) : null;
+  const parsedState = state && state.data ? JSON.parse(state.data) : null;
 
   if (parsedState && parsedState.waitingForDate) {
     const dateText = text.trim();
@@ -348,7 +348,7 @@ async function handleCallback(chatId, data, messageId) {
     // Сохраняем состояние в БД (serverless-safe)
     await db.setUserState(chatId, {
       waitingForName: true,
-      data: { date, time, svcNum }
+      data: { pickedDate: date, pickedTime: time, svcNum }
     });
 
     await tgApi.sendMessage(
@@ -360,12 +360,8 @@ async function handleCallback(chatId, data, messageId) {
   }
 
   if (data === 'back_home') {
-    // Очистить waitingForDate чтобы текст не интерпретировался как дата
-    const savedState = await db.getUserState(chatId);
-    const savedData = savedState ? JSON.parse(savedState.data) : {};
-    if (savedData && savedData.waitingForDate) {
-      await db.setUserState(chatId, { waitingForName: false, data: {} });
-    }
+    // Очистить все состояния ожидания
+    await db.setUserState(chatId, { waitingForDate: false, waitingForTime: false, waitingForName: false, data: {} });
     // Отправляем новое сообщение с inline-клавиатурой (не editMessageText!)
     await tgApi.sendMessage(chatId, '💅 Добро пожаловать в маникюрный салон!', {
       reply_markup: {
@@ -584,11 +580,11 @@ async function showMainMenu(chatId) {
 async function showTimeSelection(chatId, date) {
   const markup = {
     inline_keyboard: [
-      ['10:00', '10:30', '11:00', '11:30'],
-      ['12:00', '12:30', '13:00', '13:30'],
-      ['14:00', '14:30', '15:00', '15:30'],
-      ['16:00', '16:30', '17:00', '17:30'],
-      ['18:00', '18:30', '19:00', '19:30'],
+      ['time_10:00_' + date, 'time_10:30_' + date, 'time_11:00_' + date, 'time_11:30_' + date],
+      ['time_12:00_' + date, 'time_12:30_' + date, 'time_13:00_' + date, 'time_13:30_' + date],
+      ['time_14:00_' + date, 'time_14:30_' + date, 'time_15:00_' + date, 'time_15:30_' + date],
+      ['time_16:00_' + date, 'time_16:30_' + date, 'time_17:00_' + date, 'time_17:30_' + date],
+      ['time_18:00_' + date, 'time_18:30_' + date, 'time_19:00_' + date, 'time_19:30_' + date],
       [{ text: '⬅️ Назад', callback_data: 'back_home' }]
     ]
   };

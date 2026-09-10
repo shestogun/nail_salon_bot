@@ -200,6 +200,7 @@ async function deleteUserState(chatId) {
 }
 
 module.exports = {
+  query,
   initTables,
   getClientByChatId,
   upsertClient,
