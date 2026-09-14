@@ -60,48 +60,39 @@ async function ensureWebhook() {
 }
 
 module.exports = async (req) => {
-  // Вернуть ответ сразу, чтобы не таймаутить Telegram
-  const processUpdate = async () => {
-    let update;
-    if (req.method === 'POST') {
-      const body = await new Promise((resolve, reject) => {
-        let data = '';
-        req.on('data', chunk => data += chunk);
-        req.on('end', () => resolve(data));
-        req.on('error', reject);
-      });
-      try {
-        update = JSON.parse(body);
-      } catch (e) {
-        console.error('JSON parse error:', e.message);
-        return;
-      }
+  let update;
+  if (req.method === 'POST') {
+    const body = await new Response(req).text();
+    try {
+      update = JSON.parse(body);
+    } catch (e) {
+      console.error('JSON parse error:', e.message);
+      return new Response('OK', { status: 200 });
     }
+  }
 
-    if (!update) return;
+  if (!update) {
+    return new Response('OK', { status: 200 });
+  }
 
-    console.log('Received update:', JSON.stringify(update).substring(0, 200));
-    await ensureWebhook();
+  console.log('Received update:', JSON.stringify(update).substring(0, 200));
+  await ensureWebhook();
 
-    if (update.message) {
-      const msg = update.message;
-      const chatId = msg.chat.id;
-      const text = msg.text;
-      try { await handleMessage(chatId, text, msg); } catch (err) { console.error('Msg error:', err); }
-    }
+  if (update.message) {
+    const msg = update.message;
+    const chatId = msg.chat.id;
+    const text = msg.text;
+    try { await handleMessage(chatId, text, msg); } catch (err) { console.error('Msg error:', err); }
+  }
 
-    if (update.callback_query) {
-      const query = update.callback_query;
-      const chatId = query.message.chat.id;
-      const data = query.data;
-      const messageId = query.message.message_id;
-      await tgApi.answerCallbackQuery(query.id);
-      try { await handleCallback(chatId, data, messageId); } catch (err) { console.error('Callback error:', err); }
-    }
-  };
-
-  // Запускаем обработку асинхронно, не дожидаясь завершения
-  processUpdate().catch(e => console.error('Unhandled update error:', e));
+  if (update.callback_query) {
+    const query = update.callback_query;
+    const chatId = query.message.chat.id;
+    const data = query.data;
+    const messageId = query.message.message_id;
+    await tgApi.answerCallbackQuery(query.id);
+    try { await handleCallback(chatId, data, messageId); } catch (err) { console.error('Callback error:', err); }
+  }
 
   return new Response('OK', { status: 200 });
 };
