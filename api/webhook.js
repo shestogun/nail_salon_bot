@@ -323,6 +323,12 @@ async function handleCallback(chatId, data, messageId) {
     const svcNum = parseInt(parts[3]);
     const service = SERVICES[svcNum - 1];
 
+    // Сохраняем состояние ДО отправки сообщения
+    await db.setUserState(chatId, {
+      waitingForName: true,
+      data: { pickedDate: date, pickedTime: time, svcNum }
+    });
+
     const markup = {
       inline_keyboard: [
         [{ text: '✅ Подтвердить', callback_data: `confirm_${date}_${time}_${svcNum}` },
@@ -580,11 +586,36 @@ async function showMainMenu(chatId) {
 async function showTimeSelection(chatId, date) {
   const markup = {
     inline_keyboard: [
-      ['time_10:00_' + date, 'time_10:30_' + date, 'time_11:00_' + date, 'time_11:30_' + date],
-      ['time_12:00_' + date, 'time_12:30_' + date, 'time_13:00_' + date, 'time_13:30_' + date],
-      ['time_14:00_' + date, 'time_14:30_' + date, 'time_15:00_' + date, 'time_15:30_' + date],
-      ['time_16:00_' + date, 'time_16:30_' + date, 'time_17:00_' + date, 'time_17:30_' + date],
-      ['time_18:00_' + date, 'time_18:30_' + date, 'time_19:00_' + date, 'time_19:30_' + date],
+      [
+        { text: '10:00', callback_data: 'time_10:00_' + date },
+        { text: '10:30', callback_data: 'time_10:30_' + date },
+        { text: '11:00', callback_data: 'time_11:00_' + date },
+        { text: '11:30', callback_data: 'time_11:30_' + date }
+      ],
+      [
+        { text: '12:00', callback_data: 'time_12:00_' + date },
+        { text: '12:30', callback_data: 'time_12:30_' + date },
+        { text: '13:00', callback_data: 'time_13:00_' + date },
+        { text: '13:30', callback_data: 'time_13:30_' + date }
+      ],
+      [
+        { text: '14:00', callback_data: 'time_14:00_' + date },
+        { text: '14:30', callback_data: 'time_14:30_' + date },
+        { text: '15:00', callback_data: 'time_15:00_' + date },
+        { text: '15:30', callback_data: 'time_15:30_' + date }
+      ],
+      [
+        { text: '16:00', callback_data: 'time_16:00_' + date },
+        { text: '16:30', callback_data: 'time_16:30_' + date },
+        { text: '17:00', callback_data: 'time_17:00_' + date },
+        { text: '17:30', callback_data: 'time_17:30_' + date }
+      ],
+      [
+        { text: '18:00', callback_data: 'time_18:00_' + date },
+        { text: '18:30', callback_data: 'time_18:30_' + date },
+        { text: '19:00', callback_data: 'time_19:00_' + date },
+        { text: '19:30', callback_data: 'time_19:30_' + date }
+      ],
       [{ text: '⬅️ Назад', callback_data: 'back_home' }]
     ]
   };
