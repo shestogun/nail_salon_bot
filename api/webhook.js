@@ -60,10 +60,10 @@ async function ensureWebhook() {
 }
 
 module.exports = async (req) => {
-  // Vercel Edge Functions: используем Request объект
   let update;
   if (req.method === 'POST') {
-    const body = await req.text();
+    const buffer = await req.arrayBuffer();
+    const body = new TextDecoder().decode(buffer);
     try {
       update = JSON.parse(body);
     } catch (e) {
