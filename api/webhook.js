@@ -62,11 +62,12 @@ async function ensureWebhook() {
 module.exports = async (req) => {
   let update;
   if (req.method === 'POST') {
-    const chunks = [];
-    for await (const chunk of req) {
-      chunks.push(chunk);
-    }
-    const body = Buffer.concat(chunks).toString('utf-8');
+    const body = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => data += chunk);
+      req.on('end', () => resolve(data));
+      req.on('error', reject);
+    });
     try {
       update = JSON.parse(body);
     } catch (e) {
