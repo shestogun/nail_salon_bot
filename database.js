@@ -1,13 +1,20 @@
 const { neon } = require('@neondatabase/serverless');
 
-const sql = neon(process.env.DATABASE_URL);
+let _sql = null;
+
+function getSql() {
+  if (!_sql) {
+    _sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_URL_NO_SSL);
+  }
+  return _sql;
+}
 
 // Vercel Postgres auto-connects via env vars
 // VERCEL_POSTGRES_URL, VERCEL_POSTGRES_PRISMA_URL, etc.
 
 async function initTables() {
   try {
-    await sql`
+    await getSql()`
       CREATE TABLE IF NOT EXISTS clients (
         id SERIAL PRIMARY KEY,
         chat_id INTEGER UNIQUE NOT NULL,
@@ -20,7 +27,7 @@ async function initTables() {
       );
     `;
     
-    await sql`
+    await getSql()`
       CREATE TABLE IF NOT EXISTS bookings (
         id SERIAL PRIMARY KEY,
         client_id INTEGER NOT NULL,
@@ -35,7 +42,7 @@ async function initTables() {
       );
     `;
     
-    await sql`
+    await getSql()`
       CREATE TABLE IF NOT EXISTS manual_slots (
         id SERIAL PRIMARY KEY,
         date TEXT NOT NULL,
@@ -47,14 +54,14 @@ async function initTables() {
       );
     `;
     
-    await sql`
+    await getSql()`
       CREATE TABLE IF NOT EXISTS admin_users (
         id SERIAL PRIMARY KEY,
         chat_id INTEGER UNIQUE NOT NULL
       );
     `;
 
-    await sql`
+    await getSql()`
       CREATE TABLE IF NOT EXISTS user_states (
         chat_id INTEGER PRIMARY KEY,
         data TEXT NOT NULL,
@@ -70,7 +77,7 @@ async function initTables() {
 }
 
 async function getClientByChatId(chatId) {
-  const res = await sql`SELECT * FROM clients WHERE chat_id = ${chatId}`;
+  const res = await getSql()`SELECT * FROM clients WHERE chat_id = ${chatId}`;
   return res.rows[0] || null;
 }
 
@@ -80,7 +87,7 @@ async function upsertClient(chatId, message) {
   const existing = await getClientByChatId(chatId);
   
   if (existing) {
-    await sql`
+    await getSql()`
       UPDATE clients SET 
         first_name = ${first_name || ''}, 
         last_name = ${last_name || ''}, 
@@ -89,7 +96,7 @@ async function upsertClient(chatId, message) {
       WHERE chat_id = ${chatId}
     `;
   } else {
-    await sql`
+    await getSql()`
       INSERT INTO clients (chat_id, first_name, last_name, username) 
       VALUES (${chatId}, ${first_name || ''}, ${last_name || ''}, ${username || ''})
     `;
@@ -98,7 +105,7 @@ async function upsertClient(chatId, message) {
 }
 
 async function getBookingsByClientId(clientId) {
-  const res = await sql`
+  const res = await getSql()`
     SELECT * FROM bookings 
     WHERE client_id = ${clientId} AND status = 'confirmed'
     ORDER BY date ASC, time ASC
@@ -107,12 +114,12 @@ async function getBookingsByClientId(clientId) {
 }
 
 async function getBookingById(id) {
-  const res = await sql`SELECT * FROM bookings WHERE id = ${id}`;
+  const res = await getSql()`SELECT * FROM bookings WHERE id = ${id}`;
   return res.rows[0] || null;
 }
 
 async function getBookingsByDate(date) {
-  const res = await sql`
+  const res = await getSql()`
     SELECT b.*, c.first_name, c.last_name, c.phone, c.chat_id
     FROM bookings b 
     JOIN clients c ON b.client_id = c.id 
@@ -123,7 +130,7 @@ async function getBookingsByDate(date) {
 }
 
 async function addBooking(clientId, service, duration, breakAfter, date, time) {
-  const res = await sql`
+  const res = await getSql()`
     INSERT INTO bookings (client_id, service, service_duration, break, date, time) 
     VALUES (${clientId}, ${service}, ${duration}, ${breakAfter}, ${date}, ${time})
     RETURNING id
@@ -132,23 +139,23 @@ async function addBooking(clientId, service, duration, breakAfter, date, time) {
 }
 
 async function updateBookingStatus(id, status) {
-  await sql`
+  await getSql()`
     UPDATE bookings SET status = ${status}, updated_at = NOW() WHERE id = ${id}
   `;
 }
 
 async function getBlockedSlotsForDate(date) {
-  const res = await sql`SELECT time FROM manual_slots WHERE date = ${date} AND type = 'blocked' AND active = 1`;
+  const res = await getSql()`SELECT time FROM manual_slots WHERE date = ${date} AND type = 'blocked' AND active = 1`;
   return res.rows.map(r => r.time);
 }
 
 async function getFreeSlotsForDate(date) {
-  const res = await sql`SELECT time FROM manual_slots WHERE date = ${date} AND type = 'free' AND active = 1`;
+  const res = await getSql()`SELECT time FROM manual_slots WHERE date = ${date} AND type = 'free' AND active = 1`;
   return res.rows.map(r => r.time);
 }
 
 async function addManualSlot(date, time, type) {
-  await sql`
+  await getSql()`
     INSERT INTO manual_slots (date, time, type) 
     VALUES (${date}, ${time}, ${type})
     ON CONFLICT (date, time, type) DO UPDATE SET active = 1
@@ -156,26 +163,26 @@ async function addManualSlot(date, time, type) {
 }
 
 async function removeManualSlot(date, time) {
-  await sql`DELETE FROM manual_slots WHERE date = ${date} AND time = ${time}`;
+  await getSql()`DELETE FROM manual_slots WHERE date = ${date} AND time = ${time}`;
 }
 
 async function addAdminUser(chatId) {
-  await sql`INSERT INTO admin_users (chat_id) VALUES (${chatId}) ON CONFLICT (chat_id) DO NOTHING`;
+  await getSql()`INSERT INTO admin_users (chat_id) VALUES (${chatId}) ON CONFLICT (chat_id) DO NOTHING`;
 }
 
 async function isAdmin(chatId) {
-  const res = await sql`SELECT * FROM admin_users WHERE chat_id = ${chatId}`;
+  const res = await getSql()`SELECT * FROM admin_users WHERE chat_id = ${chatId}`;
   return res.rows.length > 0;
 }
 
 async function getAllAdminChatIds() {
-  const res = await sql`SELECT chat_id FROM admin_users`;
+  const res = await getSql()`SELECT chat_id FROM admin_users`;
   return res.rows.map(r => r.chat_id);
 }
 
 async function setUserState(chatId, state) {
   const data = JSON.stringify(state);
-  await sql`
+  await getSql()`
     INSERT INTO user_states (chat_id, data)
     VALUES (${chatId}, ${data})
     ON CONFLICT (chat_id) DO UPDATE SET data = ${data}, updated_at = NOW()
@@ -183,12 +190,12 @@ async function setUserState(chatId, state) {
 }
 
 async function getUserState(chatId) {
-  const res = await sql`SELECT * FROM user_states WHERE chat_id = ${chatId}`;
+  const res = await getSql()`SELECT * FROM user_states WHERE chat_id = ${chatId}`;
   return res.rows[0] || null;
 }
 
 async function deleteUserState(chatId) {
-  await sql`DELETE FROM user_states WHERE chat_id = ${chatId}`;
+  await getSql()`DELETE FROM user_states WHERE chat_id = ${chatId}`;
 }
 
 module.exports = {
