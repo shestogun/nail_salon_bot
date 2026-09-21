@@ -1,4 +1,6 @@
-const { sql } = require('@vercel/postgres');
+const { neon } = require('@neondatabase/serverless');
+
+const sql = neon(process.env.DATABASE_URL);
 
 // Vercel Postgres auto-connects via env vars
 // VERCEL_POSTGRES_URL, VERCEL_POSTGRES_PRISMA_URL, etc.

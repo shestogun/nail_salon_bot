@@ -1,6 +1,6 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/api/webhook", "destination": "/api/webhook/index.js" }
+    { "source": "/api/webhook", "destination": "/api/webhook/index.js", "runtime": "nodejs20.x" }
   ]
 }
