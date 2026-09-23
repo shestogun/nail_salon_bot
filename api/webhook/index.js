@@ -4,8 +4,7 @@ const slots = require('../services/slots');
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const TG_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-// Инициализация таблиц при загрузке
-db.initTables().catch(e => console.error('DB init error:', e));
+// Инициализация таблиц будет вызвана в handler
 
 // ── Telegram API helpers ──
 
@@ -21,9 +20,9 @@ async function tgSend(chatId, text, opts = {}) {
   return res.json();
 }
 
-async function tgEdit(chatId, messageId, text, opts = {}) {
+async function tgEdit(text, opts = {}) {
   const url = `${TG_API}/editMessageText`;
-  const body = { chat_id: chatId, message_id: messageId, text, ...opts };
+  const body = { chat_id: opts.chat_id, message_id: opts.message_id, text: text };
   if (opts.reply_markup) body.reply_markup = opts.reply_markup;
   const res = await fetch(url, {
     method: 'POST',
@@ -46,11 +45,18 @@ async function tgAnswerCallback(callbackQueryId, text, opts = {}) {
 }
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST' || !req.body) {
+  if (req.method !== 'POST') {
     return res.status(200).send('OK');
   }
 
-  const update = req.body;
+  const body = await req.text();
+  let update;
+  try {
+    update = JSON.parse(body);
+  } catch (e) {
+    console.error('JSON parse error:', e);
+    return res.status(400).send('Invalid JSON');
+  }
 
   if (update.message) {
     const msg = update.message;
